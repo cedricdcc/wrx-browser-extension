@@ -41,7 +41,8 @@ export default function App() {
     try {
       const response = await fetch(url, {
         headers: {
-          Accept: 'text/turtle, application/n-triples, application/rdf+xml, application/ld+json'
+          Accept:
+            'text/turtle;q=1.0, application/n-triples;q=0.9, application/rdf+xml;q=0.8, application/ld+json;q=0.7'
         }
       });
 
@@ -92,7 +93,15 @@ export default function App() {
             </thead>
             <tbody>
               {triples.map((t) => (
-                <tr key={`${t.subject.value}|${t.predicate.value}|${t.object.termType}|${t.object.value}|${t.graph.value}`}>
+                <tr
+                  key={JSON.stringify([
+                    t.subject.value,
+                    t.predicate.value,
+                    t.object.termType,
+                    t.object.value,
+                    t.graph.value
+                  ])}
+                >
                   <td className="subject">{t.subject.value}</td>
                   <td className="predicate">{t.predicate.value}</td>
                   <td className="object">
