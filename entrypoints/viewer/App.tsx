@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Parser, Quad } from 'n3';
 
-const parser = new Parser();
-
 const normalizeTargetUrl = (value: string): string | null => {
   try {
     const parsed = new URL(value);
@@ -53,6 +51,7 @@ export default function App() {
 
       const text = await response.text();
 
+      const parser = new Parser();
       const parsedTriples = parser.parse(text);
 
       setTriples(parsedTriples);
