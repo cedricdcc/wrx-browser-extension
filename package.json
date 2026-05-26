@@ -1,0 +1,25 @@
+{
+  "name": "wrx-viewer",
+  "description": "A view-source tool for Semantic Web triples",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wxt",
+    "build:chrome": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip:chrome": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox"
+  },
+  "dependencies": {
+    "n3": "^1.17.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/n3": "^1.21.1",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.4.5",
+    "wxt": "^0.18.0"
+  }
+}
