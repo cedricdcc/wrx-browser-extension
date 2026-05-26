@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Parser, Quad } from 'n3';
 
+const parser = new Parser();
+
+const normalizeTargetUrl = (value: string): string | null => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
 export default function App() {
   const [target, setTarget] = useState<string>('');
   const [triples, setTriples] = useState<Quad[]>([]);
@@ -12,8 +23,16 @@ export default function App() {
     const targetUrl = params.get('target');
 
     if (targetUrl) {
-      setTarget(targetUrl);
-      fetchTriples(targetUrl);
+      const normalizedTargetUrl = normalizeTargetUrl(targetUrl);
+
+      if (!normalizedTargetUrl) {
+        setError('Invalid target URL provided.');
+        setLoading(false);
+        return;
+      }
+
+      setTarget(normalizedTargetUrl);
+      fetchTriples(normalizedTargetUrl);
     } else {
       setError('No target URL provided.');
       setLoading(false);
@@ -34,7 +53,6 @@ export default function App() {
 
       const text = await response.text();
 
-      const parser = new Parser();
       const parsedTriples = parser.parse(text);
 
       setTriples(parsedTriples);
@@ -51,7 +69,7 @@ export default function App() {
       <header>
         <h1>WRX Triple Viewer</h1>
         <p>
-          Source: <a href={target}>{target}</a>
+          Source: {target}
         </p>
       </header>
 
@@ -74,8 +92,8 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              {triples.map((t, index) => (
-                <tr key={index}>
+              {triples.map((t) => (
+                <tr key={`${t.subject.value}|${t.predicate.value}|${t.object.termType}|${t.object.value}|${t.graph.value}`}>
                   <td className="subject">{t.subject.value}</td>
                   <td className="predicate">{t.predicate.value}</td>
                   <td className="object">
