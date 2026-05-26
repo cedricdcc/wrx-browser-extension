@@ -1,0 +1,79 @@
+:root {
+  --bg-color: #f8f9fa;
+  --text-color: #212529;
+  --border-color: #dee2e6;
+  --subject-color: #005cc5;
+  --predicate-color: #6f42c1;
+  --object-color: #032f62;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header h1 {
+  margin: 0 0 0.5rem 0;
+}
+
+header p {
+  color: #666;
+  margin-bottom: 2rem;
+  word-break: break-all;
+}
+
+.status {
+  font-style: italic;
+  color: #666;
+}
+
+.error {
+  color: #d73a49;
+  background: #ffeef0;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #d73a49;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  word-break: break-word;
+}
+
+th {
+  background-color: #e9ecef;
+  font-weight: bold;
+  font-family: system-ui, sans-serif;
+}
+
+.subject {
+  color: var(--subject-color);
+}
+
+.predicate {
+  color: var(--predicate-color);
+}
+
+.object {
+  color: var(--object-color);
+}
