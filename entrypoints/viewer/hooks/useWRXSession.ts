@@ -393,6 +393,8 @@ export const useWRXSession = () => {
     setError,
     setLoading,
     setVisitedNodes,
+    setTriples,
+    setNavigationEdges,
     fetchSemanticData,
     handleSearchSubmit,
     handleNodeClick,

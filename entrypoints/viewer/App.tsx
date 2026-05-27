@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Download, ListRestart, Settings as SettingsIcon } from 'lucide-react';
 import { generateShaclShapes } from './agent';
 
 // Custom Hooks
 import { useWRXSession } from './hooks/useWRXSession';
 import { useAIAgent } from './hooks/useAIAgent';
 import { usePhysicsLayout } from './hooks/usePhysicsLayout';
+import { useAutocrawl } from './hooks/useAutocrawl';
 
 // UI and Layout Components
 import { Header } from './components/layout/Header';
@@ -20,8 +21,14 @@ import { TriplesTab } from './components/feature/triples/TriplesTab';
 import { AnalyticsTab } from './components/feature/analytics/AnalyticsTab';
 import { SourceTab } from './components/feature/source/SourceTab';
 import { DiscoveryTraceTab } from './components/feature/trace/DiscoveryTraceTab';
+import { AutocrawlTab } from './components/feature/autocrawl/AutocrawlTab';
+import { AutocrawlNetworkGraph } from './components/feature/autocrawl/AutocrawlNetworkGraph';
+import { ImportanceTable } from './components/feature/autocrawl/ImportanceTable';
+import { AutocrawlReport } from './components/feature/autocrawl/AutocrawlReport';
+import { AboutTab } from './components/feature/about/AboutTab';
 
 export default function App() {
+  const [segmentMode, setSegmentMode] = useState<'explore' | 'autocrawl'>('explore');
   const [activeTab, setActiveTab] = useState<TabId>('graph');
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   
@@ -36,6 +43,15 @@ export default function App() {
   useEffect(() => {
     document.body.className = `${theme}-theme`;
   }, [theme]);
+
+  // Sync active bottom tab when top segment mode changes
+  useEffect(() => {
+    if (segmentMode === 'explore') {
+      setActiveTab('graph');
+    } else {
+      setActiveTab('autocrawl-console');
+    }
+  }, [segmentMode]);
 
   // Hook 1: Session state and WRX triple crawler
   const {
@@ -58,7 +74,10 @@ export default function App() {
     handleNodeSelect,
     handleDownloadTurtle,
     handleResetSession,
-    fetchSemanticData
+    fetchSemanticData,
+    setTriples,
+    setVisitedNodes,
+    setNavigationEdges
   } = useWRXSession();
 
   // Hook 2: Autonomous AI Explorative reasoning loops
@@ -108,6 +127,30 @@ export default function App() {
     graphViewMode
   });
 
+  // Hook 4: BFS web HTML crawler & PageRank network analysis
+  const {
+    currentPhase,
+    crawlLog,
+    nodes,
+    edges,
+    progress,
+    crawlDelay,
+    setCrawlDelay,
+    keywordCloud,
+    useTabRendering,
+    setUseTabRendering,
+    maxDepth,
+    setMaxDepth,
+    runHtmlCrawl,
+    runTripleHarvest,
+    resetAutocrawl
+  } = useAutocrawl(
+    triples,
+    setTriples,
+    setVisitedNodes,
+    setNavigationEdges
+  );
+
   const activeTrace = traces[selectedUri];
   const shaclShapesText = useMemo(() => generateShaclShapes(triples), [triples]);
 
@@ -117,7 +160,7 @@ export default function App() {
       <div className="glow-effect cyan"></div>
       <div className="glow-effect purple"></div>
 
-      {/* Main App Header */}
+      {/* Main App Header with Segment Toggle */}
       <Header
         targetInput={targetInput}
         setTargetInput={setTargetInput}
@@ -130,6 +173,12 @@ export default function App() {
         downloading={downloading}
         isExportDisabled={triples.length === 0}
         isResetDisabled={triples.length === 0}
+        segmentMode={segmentMode}
+        setSegmentMode={setSegmentMode}
+        onAboutClick={() => {
+          setSegmentMode('explore');
+          setActiveTab('about');
+        }}
       />
 
       {/* Stats Dashboard Info-Bar */}
@@ -174,6 +223,7 @@ export default function App() {
 
         {/* Navigation Tabs bar switcher */}
         <Tabs
+          segmentMode={segmentMode}
           activeTab={activeTab}
           onChange={setActiveTab}
           isSourceDisabled={!activeTrace}
@@ -190,6 +240,7 @@ export default function App() {
 
           {!loading && (
             <>
+              {/* EXPLORE MODE VIEWS */}
               {activeTab === 'graph' && (
                 <NavigationTab
                   graphNodes={graphNodes}
@@ -251,6 +302,117 @@ export default function App() {
                 <DiscoveryTraceTab
                   activeTrace={activeTrace}
                   selectedUri={selectedUri}
+                />
+              )}
+
+              {activeTab === 'about' && (
+                <AboutTab />
+              )}
+
+              {activeTab === 'settings' && (
+                <div className="tab-panel flex-col" style={{ gap: '1.5rem', maxWidth: '420px', margin: '2rem auto 0', padding: '0 1rem' }}>
+                  <div className="glass-card flex-col" style={{ padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)', gap: '1.25rem', background: 'rgba(255,255,255,0.015)' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>
+                      <SettingsIcon className="text-glow-cyan" size={16} style={{ color: 'var(--accent-cyan)' }} />
+                      STITCH Exploration Actions
+                    </h4>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                      Manage your active STITCH knowledge graph session. Export accumulated quads or reset the exploration path entirely.
+                    </p>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="download-btn"
+                        disabled={triples.length === 0 || downloading}
+                        onClick={handleDownloadTurtle}
+                        style={{ 
+                          width: '100%', 
+                          padding: '12px', 
+                          borderRadius: '8px', 
+                          fontSize: '13px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          gap: '8px',
+                          fontWeight: 'bold',
+                          cursor: triples.length === 0 || downloading ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {downloading ? <Loader2 className="spinner" size={16} /> : <Download size={16} />}
+                        Export Knowledge Graph (.ttl)
+                      </button>
+
+                      <button
+                        type="button"
+                        className="reset-btn"
+                        disabled={triples.length === 0}
+                        onClick={handleResetSession}
+                        style={{ 
+                          width: '100%', 
+                          padding: '12px', 
+                          borderRadius: '8px', 
+                          fontSize: '13px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          gap: '8px',
+                          fontWeight: 'bold',
+                          cursor: triples.length === 0 ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        <ListRestart size={16} />
+                        Reset Active Session
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AUTOCRAWL MODE VIEWS */}
+              {activeTab === 'autocrawl-console' && (
+                <AutocrawlTab
+                  currentPhase={currentPhase}
+                  crawlLog={crawlLog}
+                  progress={progress}
+                  crawlDelay={crawlDelay}
+                  setCrawlDelay={setCrawlDelay}
+                  useTabRendering={useTabRendering}
+                  setUseTabRendering={setUseTabRendering}
+                  maxDepth={maxDepth}
+                  setMaxDepth={setMaxDepth}
+                  runHtmlCrawl={runHtmlCrawl}
+                  runTripleHarvest={runTripleHarvest}
+                  resetAutocrawl={resetAutocrawl}
+                  selectedUri={selectedUri}
+                />
+              )}
+
+              {activeTab === 'autocrawl-graph' && (
+                <div className="tab-panel flex-col">
+                  <div className="trace-intro">
+                    <h3>Hyperlink & Semantic Crawler Network</h3>
+                    <p>Visual representation of crawled HTML nodes (cyan) and secondary semantic RDF relations (purple) sized by PageRank centrality scores.</p>
+                  </div>
+                  <AutocrawlNetworkGraph nodes={nodes} edges={edges} />
+                </div>
+              )}
+
+              {activeTab === 'autocrawl-importance' && (
+                <div className="tab-panel flex-col">
+                  <div className="trace-intro">
+                    <h3>PageRank Centrality Ranks</h3>
+                    <p>Ranked metrics of document importance inside the local network neighbourhood.</p>
+                  </div>
+                  <ImportanceTable nodes={nodes} />
+                </div>
+              )}
+
+              {activeTab === 'autocrawl-report' && (
+                <AutocrawlReport
+                  nodes={nodes}
+                  edges={edges}
+                  keywordCloud={keywordCloud}
                 />
               )}
             </>
