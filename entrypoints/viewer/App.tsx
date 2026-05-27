@@ -57,7 +57,8 @@ export default function App() {
     handleNodeClick,
     handleNodeSelect,
     handleDownloadTurtle,
-    handleResetSession
+    handleResetSession,
+    fetchSemanticData
   } = useWRXSession();
 
   // Hook 2: Autonomous AI Explorative reasoning loops
