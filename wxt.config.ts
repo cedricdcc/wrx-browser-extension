@@ -7,6 +7,7 @@ export default defineConfig({
     description: 'View the RDF source data of any URI.',
     omnibox: { keyword: 'wrx' },
     permissions: ['tabs'],
+    host_permissions: ['<all_urls>'],
     browser_specific_settings: {
       gecko: {
         id: 'wrx-viewer@cedricdcc.com',

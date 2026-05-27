@@ -11,11 +11,14 @@
     "zip:firefox": "wxt zip -b firefox"
   },
   "dependencies": {
+    "jsonld": "^8.3.2",
+    "lucide-react": "^0.439.0",
     "n3": "^1.17.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/jsonld": "^1.5.15",
     "@types/n3": "^1.21.1",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",

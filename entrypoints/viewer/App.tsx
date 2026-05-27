@@ -1,117 +1,260 @@
-import { useEffect, useState } from 'react';
-import { Parser, Quad } from 'n3';
+import { useState, useMemo, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+import { generateShaclShapes } from './agent';
 
-const normalizeTargetUrl = (value: string): string | null => {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.toString() : null;
-  } catch {
-    return null;
-  }
-};
+// Custom Hooks
+import { useWRXSession } from './hooks/useWRXSession';
+import { useAIAgent } from './hooks/useAIAgent';
+import { usePhysicsLayout } from './hooks/usePhysicsLayout';
+
+// UI and Layout Components
+import { Header } from './components/layout/Header';
+import { Tabs, TabId } from './components/layout/Tabs';
+import { ErrorToast } from './components/ui/ErrorToast';
+import { StatCard } from './components/ui/StatCard';
+
+// Feature Tab Components
+import { NavigationTab } from './components/feature/navigation/NavigationTab';
+import { AgentTab } from './components/feature/agent/AgentTab';
+import { TriplesTab } from './components/feature/triples/TriplesTab';
+import { AnalyticsTab } from './components/feature/analytics/AnalyticsTab';
+import { SourceTab } from './components/feature/source/SourceTab';
+import { DiscoveryTraceTab } from './components/feature/trace/DiscoveryTraceTab';
 
 export default function App() {
-  const [target, setTarget] = useState<string>('');
-  const [triples, setTriples] = useState<Quad[]>([]);
-  const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<TabId>('graph');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  
+  const [graphViewMode, setGraphViewMode] = useState<'spring' | 'treeList'>(() => {
+    return (sessionStorage.getItem('wrx_session_graph_mode') as any) || 'spring';
+  });
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const targetUrl = params.get('target');
-
-    if (targetUrl) {
-      const normalizedTargetUrl = normalizeTargetUrl(targetUrl);
-
-      if (!normalizedTargetUrl) {
-        setError('Invalid target URL provided.');
-        setLoading(false);
-        return;
-      }
-
-      setTarget(normalizedTargetUrl);
-      fetchTriples(normalizedTargetUrl);
-    } else {
-      setError('No target URL provided.');
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchTriples = async (url: string) => {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          Accept:
-            'text/turtle;q=1.0, application/n-triples;q=0.9, application/rdf+xml;q=0.8, application/ld+json;q=0.7'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
-      }
-
-      const text = await response.text();
-
-      const parser = new Parser();
-      const parsedTriples = parser.parse(text);
-
-      setTriples(parsedTriples);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch or parse triples.';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  useEffect(() => {
+    document.body.className = `${theme}-theme`;
+  }, [theme]);
+
+  // Hook 1: Session state and WRX triple crawler
+  const {
+    triples,
+    visitedNodes,
+    navigationEdges,
+    traces,
+    selectedUri,
+    targetInput,
+    error,
+    loading,
+    downloading,
+    triplesRef,
+    visitedNodesRef,
+    navigationEdgesRef,
+    setTargetInput,
+    setError,
+    handleSearchSubmit,
+    handleNodeClick,
+    handleNodeSelect,
+    handleDownloadTurtle,
+    handleResetSession
+  } = useWRXSession();
+
+  // Hook 2: Autonomous AI Explorative reasoning loops
+  const {
+    agentEndpoint,
+    setAgentEndpoint,
+    agentApiKey,
+    setAgentApiKey,
+    agentModel,
+    setAgentModel,
+    agentFormat,
+    setAgentFormat,
+    agentMaxCalls,
+    setAgentMaxCalls,
+    agentQuestion,
+    setAgentQuestion,
+    isAgentRunning,
+    agentLogs,
+    agentAnswer,
+    agentStatusText,
+    agentCurrentCalls,
+    showAgentSettings,
+    setShowAgentSettings,
+    handleStartAgent,
+    handleStopAgent
+  } = useAIAgent({
+    selectedUri,
+    visitedNodes,
+    triplesRef,
+    visitedNodesRef,
+    navigationEdgesRef,
+    fetchSemanticData,
+    setError
+  });
+
+  // Hook 3: Force-directed Spring SVG physics layout
+  const {
+    graphNodes,
+    handleSVGMouseDown,
+    handleSVGMouseMove,
+    handleSVGMouseUpOrLeave
+  } = usePhysicsLayout({
+    visitedNodes,
+    navigationEdges,
+    triplesRef,
+    activeTab,
+    graphViewMode
+  });
+
+  const activeTrace = traces[selectedUri];
+  const shaclShapesText = useMemo(() => generateShaclShapes(triples), [triples]);
+
   return (
-    <div className="container">
-      <header>
-        <h1>WRX Triple Viewer</h1>
-        <p>
-          Source: {target}
-        </p>
-      </header>
+    <div className="dashboard-container">
+      {/* Glow Effects */}
+      <div className="glow-effect cyan"></div>
+      <div className="glow-effect purple"></div>
 
-      <main>
-        {loading && <div className="status">Fetching Linked Data...</div>}
+      {/* Main App Header */}
+      <Header
+        targetInput={targetInput}
+        setTargetInput={setTargetInput}
+        onSubmit={handleSearchSubmit}
+        onExport={handleDownloadTurtle}
+        onReset={handleResetSession}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        loading={loading}
+        downloading={downloading}
+        isExportDisabled={triples.length === 0}
+        isResetDisabled={triples.length === 0}
+      />
 
-        {error && <div className="error">Error: {error}</div>}
+      {/* Stats Dashboard Info-Bar */}
+      <section className="stats-dashboard">
+        <StatCard
+          title="Currently Selected Node"
+          value={
+            <span className="stat-value text-glow-cyan truncate-text" title={selectedUri}>
+              {selectedUri.replace('https://', '').replace('http://', '') || 'None'}
+            </span>
+          }
+        />
+        <StatCard
+          title="Node Format"
+          value={<span className="stat-value text-glow-cyan">{activeTrace?.format || 'N/A'}</span>}
+        />
+        <StatCard
+          title="Active Graph Size"
+          value={
+            <span className="stat-value text-glow-purple flex-center">
+              {triples.length} quads
+              {visitedNodes.length > 1 && (
+                <span className="link-badge">{visitedNodes.length} nodes visited</span>
+              )}
+            </span>
+          }
+        />
+        <StatCard
+          title="Source Strategy"
+          value={
+            <span className={`stat-value badge ${activeTrace?.source || 'none'}`}>
+              {activeTrace ? activeTrace.source : 'N/A'}
+            </span>
+          }
+        />
+      </section>
 
-        {!loading && !error && triples.length === 0 && (
-          <div className="status">No triples found or endpoint did not return RDF.</div>
-        )}
+      {/* Main content grid */}
+      <main className="dashboard-main">
+        {/* Error notification banner */}
+        {error && <ErrorToast error={error} onClose={() => setError('')} />}
 
-        {!loading && !error && triples.length > 0 && (
-          <table>
-            <thead>
-              <tr>
-                <th>Subject</th>
-                <th>Predicate</th>
-                <th>Object</th>
-              </tr>
-            </thead>
-            <tbody>
-              {triples.map((t) => (
-                <tr
-                  key={JSON.stringify([
-                    t.subject.value,
-                    t.predicate.value,
-                    t.object.termType,
-                    t.object.value,
-                    t.graph.value
-                  ])}
-                >
-                  <td className="subject">{t.subject.value}</td>
-                  <td className="predicate">{t.predicate.value}</td>
-                  <td className="object">
-                    {t.object.termType === 'Literal' ? `"${t.object.value}"` : t.object.value}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {/* Navigation Tabs bar switcher */}
+        <Tabs
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          isSourceDisabled={!activeTrace}
+        />
+
+        {/* Current active view panel rendering */}
+        <div className="panel-container">
+          {loading && (
+            <div className="status-panel loading">
+              <Loader2 className="spinner large" size={48} />
+              <p>Cascading Web Resource Extraction In Progress...</p>
+            </div>
+          )}
+
+          {!loading && (
+            <>
+              {activeTab === 'graph' && (
+                <NavigationTab
+                  graphNodes={graphNodes}
+                  navigationEdges={navigationEdges}
+                  triples={triples}
+                  visitedNodes={visitedNodes}
+                  selectedUri={selectedUri}
+                  onSelectNode={handleNodeSelect}
+                  onMouseDown={handleSVGMouseDown}
+                  onMouseMove={handleSVGMouseMove}
+                  onMouseUp={handleSVGMouseUpOrLeave}
+                  graphViewMode={graphViewMode}
+                  setGraphViewMode={setGraphViewMode}
+                />
+              )}
+
+              {activeTab === 'agent' && (
+                <AgentTab
+                  agentEndpoint={agentEndpoint}
+                  setAgentEndpoint={setAgentEndpoint}
+                  agentApiKey={agentApiKey}
+                  setAgentApiKey={setAgentApiKey}
+                  agentModel={agentModel}
+                  setAgentModel={setAgentModel}
+                  agentFormat={agentFormat}
+                  setAgentFormat={setAgentFormat}
+                  agentMaxCalls={agentMaxCalls}
+                  setAgentMaxCalls={setAgentMaxCalls}
+                  agentQuestion={agentQuestion}
+                  setAgentQuestion={setAgentQuestion}
+                  isAgentRunning={isAgentRunning}
+                  agentLogs={agentLogs}
+                  agentAnswer={agentAnswer}
+                  agentStatusText={agentStatusText}
+                  agentCurrentCalls={agentCurrentCalls}
+                  showAgentSettings={showAgentSettings}
+                  setShowAgentSettings={setShowAgentSettings}
+                  handleStartAgent={handleStartAgent}
+                  handleStopAgent={handleStopAgent}
+                  shaclShapesText={shaclShapesText}
+                />
+              )}
+
+              {activeTab === 'triples' && (
+                <TriplesTab
+                  triples={triples}
+                  selectedUri={selectedUri}
+                  onNodeClick={handleNodeClick}
+                />
+              )}
+
+              {activeTab === 'analytics' && <AnalyticsTab triples={triples} />}
+
+              {activeTab === 'source' && activeTrace && (
+                <SourceTab activeTrace={activeTrace} />
+              )}
+
+              {activeTab === 'trace' && activeTrace && (
+                <DiscoveryTraceTab
+                  activeTrace={activeTrace}
+                  selectedUri={selectedUri}
+                />
+              )}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );
